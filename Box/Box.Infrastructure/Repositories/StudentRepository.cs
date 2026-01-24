@@ -1,7 +1,7 @@
 using Box.Domain.Entities;
 using Box.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Box.Infrastructure.Interfaces;
+using Box.Application.Interfaces;
 
 namespace Box.Infrastructure.Repositories;
 
@@ -14,7 +14,7 @@ public class StudentRepository : IStudentRepository
         _db = db;
     }
 
-    public async Task<(List<Student>, int)> GetStudentsAsync(
+    public async Task<(List<Student> Items, int Total)> GetStudentsAsync(
         int offset,
         int limit)
     {

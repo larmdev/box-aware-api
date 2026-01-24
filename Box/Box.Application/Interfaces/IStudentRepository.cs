@@ -1,11 +1,11 @@
 using Box.Domain.Entities;
 
-namespace Box.Infrastructure.Interfaces;
+namespace Box.Application.Interfaces;
 
 public interface IStudentRepository
 {
     Task<(List<Student> Items, int Total)> GetStudentsAsync(
         int offset,
-        int limit);
+        int limit
+    );
 }
-

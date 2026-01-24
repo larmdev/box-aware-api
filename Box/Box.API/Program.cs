@@ -1,12 +1,11 @@
 using Box.Application.Interfaces;
 using Box.Application.Services;
 using Box.Infrastructure.Data;
-using Box.Infrastructure.Interfaces;
 using Box.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Box.Infrastructure.ExternalApis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,10 +15,19 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseInMemoryDatabase("BoxDb"));
 
-// N-Tier DI
+// Services & Repositories
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IRankService, RankService>();
+builder.Services.AddScoped<ITodoService, TodoService>();
+builder.Services.AddHttpClient<ITodoApiClient, TodoApiClient>((sp, client) =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    client.BaseAddress = new Uri(
+        config["ExternalApis:TodoApi:BaseUrl"]!
+    );
+});
+
 
 // JWT
 var jwt = builder.Configuration.GetSection("JwtSettings");
@@ -50,7 +58,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     DbSeeder.Seed(db);
 }
-
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -1,6 +1,5 @@
 using Box.Application.Interfaces;
 using Box.Domain.Entities;
-using Box.Infrastructure.Interfaces;
 using Box.Application.Dtos;
 using Box.Application.Common;
 
