@@ -43,3 +43,8 @@ request body:
 GET http://localhost:8080/api/todo
 GET http://localhost:8080/api/todo/88
 ```
+### Unit Test
+```
+cd Box
+dotnet test
+```
