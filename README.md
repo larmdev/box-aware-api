@@ -1,5 +1,10 @@
 # box-aware-api
 
+### endpoint url
+```
+https://box-aware-api.onrender.com
+```
+
 ### ขั้นตอนการ รัน project บน localhost
 ```
 cd Box
@@ -19,18 +24,18 @@ endpoint: http://localhost:8080
 ```
 ### Auth เพื่อเอา access_token ไปใช้งาน
 ```
-POST http://localhost:8080/api/auth/login
+POST https://box-aware-api.onrender.com/api/auth/login
 ```
 
 ### Example 1
 ```
-GET http://localhost:8080/api/students
-GET http://localhost:8080/api/students?offset=0&limit=10
+GET https://box-aware-api.onrender.com/api/students
+GET https://box-aware-api.onrender.com/api/students?offset=0&limit=10
 ```
 
 ### Example 2
 ```
-POST http://localhost:8080/api/rank
+POST https://box-aware-api.onrender.com/api/rank
 
 request body:
 
@@ -40,8 +45,8 @@ request body:
 ```
 ### Example 3
 ```
-GET http://localhost:8080/api/todo
-GET http://localhost:8080/api/todo/88
+GET https://box-aware-api.onrender.com/api/todo
+GET https://box-aware-api.onrender.com/api/todo/88
 ```
 ### Unit Test
 ```
