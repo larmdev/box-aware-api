@@ -12,8 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // Db
+// builder.Services.AddDbContext<AppDbContext>(options =>
+//     options.UseInMemoryDatabase("BoxDb"));
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseInMemoryDatabase("BoxDb"));
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DatabaseConnection"),
+        b => b.MigrationsAssembly("Box.Infrastructure")
+    ));
 
 // Services & Repositories
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
@@ -50,6 +56,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 // Seed
@@ -57,6 +66,13 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     DbSeeder.Seed(db);
+}
+
+// Swagger middleware
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseAuthentication();
