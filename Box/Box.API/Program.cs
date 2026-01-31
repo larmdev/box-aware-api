@@ -53,6 +53,8 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 // Redis
 builder.Services.AddScoped<ISessionService, RedisSessionService>();
+builder.Services.AddScoped<IRefreshTokenService, RedisRefreshTokenService>();
+
 
 // JWT
 var jwt = builder.Configuration.GetSection("JwtSettings");

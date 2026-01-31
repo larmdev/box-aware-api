@@ -16,13 +16,18 @@ public class AuthService : IAuthService
     private readonly IAuthRepository _repo;
     private readonly ICurrentUserService _currentUser;
     private readonly ISessionService _sessionService;
+    private readonly IRefreshTokenService _refreshTokenService;
     private readonly PasswordHasher _passwordHasher;
+
+    private readonly int _expireMinutes;
+    private readonly int _expireDays;
 
     public AuthService(
         IConfiguration config,
         IAuthRepository repo,
         ICurrentUserService currentUser,
         ISessionService sessionService,
+        IRefreshTokenService refreshTokenService,
         PasswordHasher passwordHasher
         )
     {
@@ -30,7 +35,11 @@ public class AuthService : IAuthService
         _repo = repo;
         _currentUser = currentUser;
         _sessionService = sessionService;
+        _refreshTokenService = refreshTokenService;
         _passwordHasher = passwordHasher;
+
+        _expireMinutes = config.GetValue<int>("JwtSettings:ExpireMinutes");
+        _expireDays = config.GetValue<int>("JwtSettings:ExpireDays");
     }
 
     public async Task<ApiResponse<AuthResponseDto>> LogInAsync(AuthRequestDto req)
@@ -47,42 +56,20 @@ public class AuthService : IAuthService
             string userId = user.UserId.ToString();
             var jti = Guid.NewGuid().ToString();
 
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, userId),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(JwtRegisteredClaimNames.Jti, jti)
-            };
-
-            var jwt = _config.GetSection("JwtSettings");
-            var key = new SymmetricSecurityKey(
-                Convert.FromBase64String(jwt["Secret"]!)
-            );
-
-            var expireMinutes = int.Parse(jwt["ExpireMinutes"]!);
-            var expires = DateTime.UtcNow.AddMinutes(expireMinutes);
-
-            var token = new JwtSecurityToken(
-                issuer: jwt["Issuer"],
-                audience: jwt["Audience"],
-                claims: claims,
-                expires: expires,
-                signingCredentials: new SigningCredentials(
-                    key, SecurityAlgorithms.HmacSha256
-                )
-            );
-
-            var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
+            var (accessToken, expires) = GenerateJwt(userId, jti);
 
             await _sessionService.CreateSessionAsync(
                 Guid.Parse(userId),
                 jti,
-                TimeSpan.FromMinutes(expireMinutes)
+                TimeSpan.FromMinutes(_expireMinutes)
             );
+
+            var refreshToken = await _refreshTokenService.CreateAsync(user.UserId, jti, TimeSpan.FromDays(_expireDays));
 
             var response = new AuthResponseDto()
             {
                 AccessToken = accessToken,
+                RefreshToken = refreshToken,
                 ExpiresAt = DateTime.Now
             };
 
@@ -94,7 +81,7 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task<ApiResponse<string>> LogOutAsync()
+    public async Task<ApiResponse<string>> LogOutAsync(string refreshToken)
     {
         try
         {
@@ -105,6 +92,8 @@ public class AuthService : IAuthService
                 userId,
                 jti.ToString()
             );
+
+            await _refreshTokenService.RevokeAsync(refreshToken);
 
             return ApiResponse<string>.Success();
         }
@@ -138,6 +127,85 @@ public class AuthService : IAuthService
         {
             return ApiResponse<string>.Error(ex.Message);
         }
+    }
+
+    public async Task<ApiResponse<AuthResponseDto>> RefreshAsync(string refreshToken)
+    {
+        try
+        {
+            var payload = await _refreshTokenService.ValidateAsync(refreshToken);
+            if (payload == null)
+                return ApiResponse<AuthResponseDto>.Error(401, "Invalid refresh token");
+
+            // check session เดิม (optional แต่แนะนำ)
+            var sessionValid = await _sessionService.IsSessionValidAsync(
+                payload.UserId,
+                payload.Jti
+            );
+
+            if (!sessionValid)
+                return ApiResponse<AuthResponseDto>.Error(401, "Session expired");
+
+            // generate new JTI + AccessToken
+            var newJti = Guid.NewGuid().ToString();
+            var (accessToken, expires) = GenerateJwt(payload.UserId.ToString(), newJti);
+
+            await _sessionService.CreateSessionAsync(
+                payload.UserId,
+                newJti,
+                TimeSpan.FromMinutes(_expireMinutes)
+            );
+
+            var newRefreshToken = await _refreshTokenService.RotateAsync(
+                refreshToken,
+                newJti,
+                TimeSpan.FromDays(_expireDays)
+            );
+
+            var response = new AuthResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = newRefreshToken,
+                ExpiresAt = expires
+            };
+
+            return ApiResponse<AuthResponseDto>.Success(response);
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<AuthResponseDto>.Error(ex.Message);
+        }
+    }
+
+
+    public (string accessToken, DateTime expires) GenerateJwt(string userId, string jti)
+    {
+        var claims = new[]{
+                new Claim(ClaimTypes.NameIdentifier, userId),
+                new Claim(JwtRegisteredClaimNames.Jti, jti)
+            };
+
+        var jwt = _config.GetSection("JwtSettings");
+        var key = new SymmetricSecurityKey(
+            Convert.FromBase64String(jwt["Secret"]!)
+        );
+
+        var expireMinutes = int.Parse(jwt["ExpireMinutes"]!);
+        var expires = DateTime.UtcNow.AddMinutes(expireMinutes);
+
+        var token = new JwtSecurityToken(
+            issuer: jwt["Issuer"],
+            audience: jwt["Audience"],
+            claims: claims,
+            expires: expires,
+            signingCredentials: new SigningCredentials(
+                key, SecurityAlgorithms.HmacSha256
+            )
+        );
+
+        var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
+
+        return (accessToken, expires);
     }
 
 }

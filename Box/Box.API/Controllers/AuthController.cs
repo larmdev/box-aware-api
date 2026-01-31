@@ -34,11 +34,20 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout([FromBody] RefreshRequestDto request)
     {
-        var result = await _service.LogOutAsync();
+        var result = await _service.LogOutAsync(request.RefreshToken);
         return Ok(result);
     }
+
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequestDto req)
+    {
+        var result = await _service.RefreshAsync(req.RefreshToken);
+        return Ok(result);
+    }
+
 
 }
 
