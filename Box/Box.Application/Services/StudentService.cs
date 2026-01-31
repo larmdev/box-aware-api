@@ -8,10 +8,15 @@ namespace Box.Application.Services;
 public class StudentService : IStudentService
 {
     private readonly IStudentRepository _repo;
+    private readonly ICurrentUserService _currentUser;
 
-    public StudentService(IStudentRepository repo)
+    public StudentService(
+        IStudentRepository repo,
+        ICurrentUserService currentUser
+        )
     {
         _repo = repo;
+        _currentUser = currentUser;
     }
 
     public async Task<SearchResponse<StudentWithCourseDto>> GetStudentsAsync(
@@ -40,6 +45,28 @@ public class StudentService : IStudentService
             offset,
             limit
         );
+    }
+
+    public async Task<ApiResponse<StudentDto>> GetStudentByIdAsync(int id)
+    {
+
+        string name = _currentUser.Name;
+        Guid userId = _currentUser.UserId;
+
+        var student = await _repo.GetStudentByIdAsync(id);
+
+        if (student == null) return ApiResponse<StudentDto>.Error(500, "student id is not found");
+
+        var item = new StudentDto()
+        {
+            Id = student.Id,
+            StudentCode = student.StudentCode,
+            FirstName = student.FirstName,
+            LastName = student.LastName,
+            Age = student.Age
+        };
+
+        return ApiResponse<StudentDto>.Success(item);
     }
 
 

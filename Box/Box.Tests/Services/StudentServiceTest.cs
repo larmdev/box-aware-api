@@ -17,7 +17,9 @@ public class StudentServiceTests
         DbSeeder.Seed(db);
 
         var repo = new StudentRepository(db);
-        var service = new StudentService(repo);
+        var currentUser = new FakeCurrentUserService();
+
+        var service = new StudentService(repo, currentUser);
 
         var result = await service.GetStudentsAsync(offset: 0, limit: 10);
 
@@ -29,5 +31,12 @@ public class StudentServiceTests
             Assert.True(result.Data.Items.First().CourseCount > 0);
         }
 
+    }
+
+    public class FakeCurrentUserService : ICurrentUserService
+    {
+        public Guid UserId { get; set; } = Guid.NewGuid();
+        public string Name { get; set; } = "demo";
+        public bool IsAuthenticated { get; set; } = true;
     }
 }

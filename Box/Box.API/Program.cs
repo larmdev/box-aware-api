@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Box.Infrastructure.ExternalApis;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         b => b.MigrationsAssembly("Box.Infrastructure")
     ));
 
+// Redis
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var config = builder.Configuration.GetConnectionString("RedisConnection");
+    return ConnectionMultiplexer.Connect(config);
+});
+
 // Services & Repositories
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IStudentService, StudentService>();
@@ -34,6 +42,11 @@ builder.Services.AddHttpClient<ITodoApiClient, TodoApiClient>((sp, client) =>
     );
 });
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// Redis
+builder.Services.AddScoped<ISessionService, RedisSessionService>();
 
 // JWT
 var jwt = builder.Configuration.GetSection("JwtSettings");
@@ -51,6 +64,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         ClockSkew = TimeSpan.Zero,
         IssuerSigningKey =
             new SymmetricSecurityKey(key)
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var sessionService = context.HttpContext
+                .RequestServices
+                .GetRequiredService<ISessionService>();
+
+            var userIdStr = context.Principal!
+                .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+                ?.Value;
+
+            var jti = context.Principal!
+                .FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)
+                ?.Value;
+
+            if (userIdStr == null || jti == null)
+            {
+                context.Fail("Invalid token");
+                return;
+            }
+
+            var valid = await sessionService.IsSessionValidAsync(
+                Guid.Parse(userIdStr),
+                jti
+            );
+
+            if (!valid)
+            {
+                context.Fail("Session expired or revoked");
+            }
+        }
     };
 });
 

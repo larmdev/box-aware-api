@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Box.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,5 +23,13 @@ public class StudentsController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
+    [HttpGet]
+    [Route("{id}")]
+    public async Task<IActionResult> GetStudentById(int id)
+    {
+        var result = await _service.GetStudentByIdAsync(id);
+        return Ok(result);
+    }
 
 }

@@ -10,4 +10,5 @@ public interface IStudentService
         int offset,
         int limit);
 
+    Task<ApiResponse<StudentDto>> GetStudentByIdAsync(int id);
 }

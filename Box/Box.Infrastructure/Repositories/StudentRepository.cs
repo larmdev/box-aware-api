@@ -31,5 +31,18 @@ public class StudentRepository : IStudentRepository
 
         return (items, total);
     }
+
+    public async Task<Student?> GetStudentByIdAsync(int id)
+    {
+        var query = _db.Students
+            .AsNoTracking()
+            .Where(i => i.Id == id);
+    
+        var item = await query.FirstOrDefaultAsync();
+
+        if (item == null) return null; 
+
+        return item;
+    }
 }
 

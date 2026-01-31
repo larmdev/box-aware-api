@@ -8,4 +8,6 @@ public interface IStudentRepository
         int offset,
         int limit
     );
+
+    Task<Student?> GetStudentByIdAsync(int id);
 }
