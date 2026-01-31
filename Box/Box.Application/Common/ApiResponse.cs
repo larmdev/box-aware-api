@@ -18,6 +18,8 @@ public class ApiResponse<T>
         => new(200, message, data);
     public static ApiResponse<T> Success(T data)
         => new(200, "Success", data);
+    public static ApiResponse<T> Success()
+        => new(200, "Success", default);
     public static ApiResponse<T> Error(int status = 500, string message = "Failed")
         => new(status, message, default);
     public static ApiResponse<T> Error(string message = "Failed")

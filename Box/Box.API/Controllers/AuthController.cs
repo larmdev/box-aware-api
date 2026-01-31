@@ -3,86 +3,42 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Box.Application.Interfaces;
 
 [ApiController]
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly IConfiguration _config;
-    private readonly ISessionService _sessionService;
+    private readonly IAuthService _service;
 
     public AuthController(
-        IConfiguration config,
-        ISessionService sessionService
+        IAuthService service
         )
     {
-        _config = config;
-        _sessionService = sessionService;
+        _service = service;
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] AuthRequestDto request)
+    {
+        var result = await _service.RegisterAsync(request);
+        return Ok(result);
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login()
+    public async Task<IActionResult> Login([FromBody] AuthRequestDto request)
     {
-        string userId = "2530ad87-f64c-4d25-8cfe-20f4443ddb57";
-        var jti = Guid.NewGuid().ToString();
-
-        var claims = new[]
-        {
-        new Claim(ClaimTypes.NameIdentifier, userId),
-        new Claim(ClaimTypes.Name, "box-user"),
-        new Claim(ClaimTypes.Role, "Admin"),
-        new Claim(JwtRegisteredClaimNames.Jti, jti)
-    };
-
-        var jwt = _config.GetSection("JwtSettings");
-        var key = new SymmetricSecurityKey(
-            Convert.FromBase64String(jwt["Secret"]!)
-        );
-
-        var expireMinutes = int.Parse(jwt["ExpireMinutes"]!);
-        var expires = DateTime.UtcNow.AddMinutes(expireMinutes);
-
-        var token = new JwtSecurityToken(
-            issuer: jwt["Issuer"],
-            audience: jwt["Audience"],
-            claims: claims,
-            expires: expires,
-            signingCredentials: new SigningCredentials(
-                key, SecurityAlgorithms.HmacSha256
-            )
-        );
-
-        await _sessionService.CreateSessionAsync(
-            Guid.Parse(userId),
-            jti,
-            TimeSpan.FromMinutes(expireMinutes)
-        );
-
-        return Ok(new
-        {
-            access_token = new JwtSecurityTokenHandler().WriteToken(token),
-            expires_at = expires
-        });
+        var result = await _service.LogInAsync(request);
+        return Ok(result);
     }
 
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var jti = User.FindFirstValue(JwtRegisteredClaimNames.Jti);
-
-        if (userIdStr == null || jti == null)
-            return Unauthorized();
-
-        await _sessionService.DeleteSessionAsync(
-            Guid.Parse(userIdStr),
-            jti
-        );
-
-        return Ok();
+        var result = await _service.LogOutAsync();
+        return Ok(result);
     }
-
 
 }
 

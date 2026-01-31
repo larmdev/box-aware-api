@@ -36,6 +36,7 @@ public class StudentServiceTests
     public class FakeCurrentUserService : ICurrentUserService
     {
         public Guid UserId { get; set; } = Guid.NewGuid();
+        public Guid Jti { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = "demo";
         public bool IsAuthenticated { get; set; } = true;
     }

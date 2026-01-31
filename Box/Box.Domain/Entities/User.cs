@@ -11,5 +11,5 @@ public class User
     public string Username { get; set; } = default!;
     public string PasswordSalt { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
-    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

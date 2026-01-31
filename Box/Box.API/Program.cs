@@ -30,8 +30,14 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 });
 
 // Services & Repositories
+builder.Services.AddScoped<PasswordHasher>();
+
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IStudentService, StudentService>();
+
 builder.Services.AddScoped<IRankService, RankService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddHttpClient<ITodoApiClient, TodoApiClient>((sp, client) =>
