@@ -7,15 +7,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Box.Infrastructure.ExternalApis;
 using StackExchange.Redis;
+using Hangfire;
+using Hangfire.Redis.StackExchange;
+using Hangfire.Dashboard.BasicAuthorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
 // Db
-// builder.Services.AddDbContext<AppDbContext>(options =>
-//     options.UseInMemoryDatabase("BoxDb"));
-
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DatabaseConnection"),
@@ -26,7 +26,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var config = builder.Configuration.GetConnectionString("RedisConnection");
-    return ConnectionMultiplexer.Connect(config);
+    return ConnectionMultiplexer.Connect(config!);
 });
 
 // Services & Repositories
@@ -40,6 +40,9 @@ builder.Services.AddScoped<IStudentService, StudentService>();
 
 builder.Services.AddScoped<IRankService, RankService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
+
+builder.Services.AddScoped<IEmailJobService, EmailJobService>();
+
 builder.Services.AddHttpClient<ITodoApiClient, TodoApiClient>((sp, client) =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
@@ -109,6 +112,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     };
 });
 
+// Hangfire Configuration
+var hangfireRedis = builder.Configuration.GetConnectionString("HangfireConnection");
+
+builder.Services.AddHangfire(config =>
+{
+    config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseRedisStorage(hangfireRedis, new RedisStorageOptions
+        {
+            Prefix = "box-hangfire:",
+            Db = 1 // แยก DB จาก cache ปกติ
+        });
+});
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.ServerName = builder.Configuration.GetValue<string>("Hangfire:ServerName");
+    options.WorkerCount = 1;
+    options.Queues = new[]
+    {
+        "send-email"
+    };
+    options.ShutdownTimeout = TimeSpan.FromMinutes(2);
+    options.HeartbeatInterval = TimeSpan.FromSeconds(20);
+    options.ServerTimeout = TimeSpan.FromMinutes(2);
+    options.ServerCheckInterval = TimeSpan.FromSeconds(25);
+});
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -132,6 +165,27 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[]
+    {
+        new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
+        {
+            SslRedirect = false,
+            RequireSsl = false,
+            LoginCaseSensitive = true,
+            Users = new []
+            {
+                new BasicAuthAuthorizationUser
+                {
+                    Login = "admin",
+                    PasswordClear = "admin"
+                }
+            }
+        })
+    }
+});
 
 app.MapControllers();
 app.Run();
