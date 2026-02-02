@@ -1,0 +1,53 @@
+{
+    "GlobalConfiguration": {
+        "BaseUrl": "http://localhost:5000",
+        "RateLimitOptions": {
+            "ClientIdHeader": "Authorization",
+            "QuotaExceededMessage": "Too many requests. Please try again later.",
+            "HttpStatusCode": 429,
+            "EnableRateLimiting": true
+        }
+    },
+    "Routes": [
+        {
+            "DownstreamPathTemplate": "/api/users",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 8080
+                }
+            ],
+            "UpstreamPathTemplate": "/users",
+            "UpstreamHttpMethod": [
+                "GET",
+                "POST"
+            ],
+            "RateLimitOptions": {
+                "EnableRateLimiting": true,
+                "Period": "3s",
+                "Limit": 5
+            }
+        },
+        {
+            "DownstreamPathTemplate": "/api/students/{everythings}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 8080
+                }
+            ],
+            "UpstreamPathTemplate": "/students/{everythings}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "POST"
+            ],
+            "RateLimitOptions": {
+                "EnableRateLimiting": true,
+                "Period": "3s",
+                "Limit": 5
+            }
+        }
+    ]
+}
