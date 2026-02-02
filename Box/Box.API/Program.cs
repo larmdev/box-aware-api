@@ -10,6 +10,9 @@ using StackExchange.Redis;
 using Hangfire;
 using Hangfire.Redis.StackExchange;
 using Hangfire.Dashboard.BasicAuthorization;
+using Box.Shared.Auth.Extensions;
+using Box.Shared.Auth.Interfaces;
+using Box.Shared.Auth.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,10 +26,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     ));
 
 // Redis
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+// builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+// {
+//     var config = builder.Configuration.GetConnectionString("RedisConnection");
+//     return ConnectionMultiplexer.Connect(config!);
+// });
+
+builder.Services.AddStackExchangeRedisCache(options =>
 {
-    var config = builder.Configuration.GetConnectionString("RedisConnection");
-    return ConnectionMultiplexer.Connect(config!);
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
+    options.InstanceName = "box-session:";
 });
 
 // Services & Repositories
@@ -55,9 +64,10 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 // Redis
-builder.Services.AddScoped<ISessionService, RedisSessionService>();
-builder.Services.AddScoped<IRefreshTokenService, RedisRefreshTokenService>();
+// builder.Services.AddScoped<ISessionService, RedisSessionService>();
+// builder.Services.AddScoped<IRefreshTokenService, RedisRefreshTokenService>();
 
+builder.Services.AddBoxSharedAuth();
 
 // JWT
 var jwt = builder.Configuration.GetSection("JwtSettings");
@@ -76,46 +86,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         IssuerSigningKey =
             new SymmetricSecurityKey(key)
     };
-
-    options.Events = new JwtBearerEvents
-    {
-        OnTokenValidated = async context =>
-        {
-            var sessionService = context.HttpContext
-                .RequestServices
-                .GetRequiredService<ISessionService>();
-
-            var userIdStr = context.Principal!
-                .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
-                ?.Value;
-
-            var jti = context.Principal!
-                .FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)
-                ?.Value;
-
-            if (userIdStr == null || jti == null)
-            {
-                context.Fail("Invalid token");
-                return;
-            }
-
-            var valid = await sessionService.IsSessionValidAsync(
-                Guid.Parse(userIdStr),
-                jti
-            );
-
-            if (!valid)
-            {
-                context.Fail("Session expired or revoked");
-            }
-        }
-    };
 });
 
 // Hangfire Configuration
 var hangfireRedis = builder.Configuration.GetConnectionString("HangfireConnection");
 
-builder.Services.AddHangfire(config =>
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("UserOnly", policy => policy.RequireClaim("user_type", "user"));
+    options.AddPolicy("MemberOnly", policy => policy.RequireClaim("user_type", "member"));
+
+}).AddHangfire(config =>
 {
     config
         .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -142,7 +123,7 @@ builder.Services.AddHangfireServer(options =>
     options.ServerCheckInterval = TimeSpan.FromSeconds(25);
 });
 
-builder.Services.AddAuthorization();
+// builder.Services.AddAuthorization();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

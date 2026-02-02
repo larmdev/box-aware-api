@@ -23,7 +23,7 @@ public class StudentsController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize]
+    [Authorize(Policy = "MemberOnly")]
     [HttpGet]
     [Route("{id}")]
     public async Task<IActionResult> GetStudentById(int id)

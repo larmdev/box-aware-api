@@ -2,6 +2,7 @@ using Box.Application.Interfaces;
 using Box.Domain.Entities;
 using Box.Application.Dtos;
 using Box.Application.Common;
+using Box.Shared.Auth.Interfaces;
 
 namespace Box.Application.Services;
 
@@ -50,8 +51,7 @@ public class StudentService : IStudentService
     public async Task<ApiResponse<StudentDto>> GetStudentByIdAsync(int id)
     {
 
-        string name = _currentUser.Name;
-        Guid userId = _currentUser.UserId;
+        Guid? userId = _currentUser.UserIdOrNull;
 
         var student = await _repo.GetStudentByIdAsync(id);
 

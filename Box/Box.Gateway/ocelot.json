@@ -43,10 +43,36 @@
                 "GET",
                 "POST"
             ],
+            "AuthenticationOptions": {
+                "AuthenticationProviderKey": "Bearer"
+            },
+            "RouteClaimsRequirement": {
+                "user_type": "user"
+            },
             "RateLimitOptions": {
                 "EnableRateLimiting": true,
                 "Period": "3s",
                 "Limit": 5
+            }
+        },
+        {
+            "DownstreamPathTemplate": "/api/auth/{everything}",
+            "DownstreamScheme": "http",
+            "DownstreamHostAndPorts": [
+                {
+                    "Host": "localhost",
+                    "Port": 8080
+                }
+            ],
+            "UpstreamPathTemplate": "/auth/{everything}",
+            "UpstreamHttpMethod": [
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE"
+            ],
+            "RateLimitOptions": {
+                "EnableRateLimiting": false
             }
         }
     ]

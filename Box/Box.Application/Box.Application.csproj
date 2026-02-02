@@ -21,5 +21,9 @@
 		<PackageReference Include="Hangfire.Redis.StackExchange" Version="1.12.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Box.Shared.Auth\Box.Shared.Auth.csproj" />
+  </ItemGroup>
+
 
 </Project>

@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Box.Application\Box.Application.csproj" />
     <ProjectReference Include="..\Box.Infrastructure\Box.Infrastructure.csproj" />
+    <ProjectReference Include="..\Box.Shared.Auth\Box.Shared.Auth.csproj" />
   </ItemGroup>
 
 </Project>

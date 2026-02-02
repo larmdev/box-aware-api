@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
+using Box.Shared.Auth.Interfaces;
 
 namespace Box.Application.Services;
 
@@ -16,7 +17,7 @@ public class AuthService : IAuthService
     private readonly IAuthRepository _repo;
     private readonly ICurrentUserService _currentUser;
     private readonly ISessionService _sessionService;
-    private readonly IRefreshTokenService _refreshTokenService;
+    // private readonly IRefreshTokenService _refreshTokenService;
     private readonly PasswordHasher _passwordHasher;
 
     private readonly int _expireMinutes;
@@ -27,7 +28,7 @@ public class AuthService : IAuthService
         IAuthRepository repo,
         ICurrentUserService currentUser,
         ISessionService sessionService,
-        IRefreshTokenService refreshTokenService,
+        // IRefreshTokenService refreshTokenService,
         PasswordHasher passwordHasher
         )
     {
@@ -35,7 +36,7 @@ public class AuthService : IAuthService
         _repo = repo;
         _currentUser = currentUser;
         _sessionService = sessionService;
-        _refreshTokenService = refreshTokenService;
+        // _refreshTokenService = refreshTokenService;
         _passwordHasher = passwordHasher;
 
         _expireMinutes = config.GetValue<int>("JwtSettings:ExpireMinutes");
@@ -58,18 +59,20 @@ public class AuthService : IAuthService
 
             var (accessToken, expires) = GenerateJwt(userId, jti);
 
-            await _sessionService.CreateSessionAsync(
-                Guid.Parse(userId),
-                jti,
-                TimeSpan.FromMinutes(_expireMinutes)
-            );
+            // await _sessionService.CreateSessionAsync(
+            //     Guid.Parse(userId),
+            //     jti,
+            //     TimeSpan.FromMinutes(_expireMinutes)
+            // );
+            
+            await _sessionService.SetSessionAsync(Guid.Parse(userId), jti, TimeSpan.FromHours(2));
 
-            var refreshToken = await _refreshTokenService.CreateAsync(user.UserId, jti, TimeSpan.FromDays(_expireDays));
+            // var refreshToken = await _refreshTokenService.CreateAsync(user.UserId, jti, TimeSpan.FromDays(_expireDays));
 
             var response = new AuthResponseDto()
             {
                 AccessToken = accessToken,
-                RefreshToken = refreshToken,
+                RefreshToken = "refreshToken",
                 ExpiresAt = DateTime.Now
             };
 
@@ -85,15 +88,15 @@ public class AuthService : IAuthService
     {
         try
         {
-            Guid userId = _currentUser.UserId;
-            Guid jti = _currentUser.Jti;
+            //Guid userId = _currentUser.UserId;
+            //Guid jti = _currentUser.Jti;
 
-            await _sessionService.DeleteSessionAsync(
-                userId,
-                jti.ToString()
-            );
+            // await _sessionService.DeleteSessionAsync(
+            //     userId,
+            //     jti.ToString()
+            // );
 
-            await _refreshTokenService.RevokeAsync(refreshToken);
+            // await _refreshTokenService.RevokeAsync(refreshToken);
 
             return ApiResponse<string>.Success();
         }
@@ -133,43 +136,43 @@ public class AuthService : IAuthService
     {
         try
         {
-            var payload = await _refreshTokenService.ValidateAsync(refreshToken);
-            if (payload == null)
-                return ApiResponse<AuthResponseDto>.Error(401, "Invalid refresh token");
+            // var payload = await _refreshTokenService.ValidateAsync(refreshToken);
+            // if (payload == null)
+            //     return ApiResponse<AuthResponseDto>.Error(401, "Invalid refresh token");
 
             // check session เดิม (optional แต่แนะนำ)
-            var sessionValid = await _sessionService.IsSessionValidAsync(
-                payload.UserId,
-                payload.Jti
-            );
+            // var sessionValid = await _sessionService.IsSessionValidAsync(
+            //     payload.UserId,
+            //     payload.Jti
+            // );
 
-            if (!sessionValid)
-                return ApiResponse<AuthResponseDto>.Error(401, "Session expired");
+            // if (!sessionValid)
+            //     return ApiResponse<AuthResponseDto>.Error(401, "Session expired");
 
             // generate new JTI + AccessToken
-            var newJti = Guid.NewGuid().ToString();
-            var (accessToken, expires) = GenerateJwt(payload.UserId.ToString(), newJti);
+            // var newJti = Guid.NewGuid().ToString();
+            // var (accessToken, expires) = GenerateJwt(payload.UserId.ToString(), newJti);
 
-            await _sessionService.CreateSessionAsync(
-                payload.UserId,
-                newJti,
-                TimeSpan.FromMinutes(_expireMinutes)
-            );
+            // await _sessionService.CreateSessionAsync(
+            //     payload.UserId,
+            //     newJti,
+            //     TimeSpan.FromMinutes(_expireMinutes)
+            // );
 
-            var newRefreshToken = await _refreshTokenService.RotateAsync(
-                refreshToken,
-                newJti,
-                TimeSpan.FromDays(_expireDays)
-            );
+            // var newRefreshToken = await _refreshTokenService.RotateAsync(
+            //     refreshToken,
+            //     newJti,
+            //     TimeSpan.FromDays(_expireDays)
+            // );
 
-            var response = new AuthResponseDto
-            {
-                AccessToken = accessToken,
-                RefreshToken = newRefreshToken,
-                ExpiresAt = expires
-            };
+            // var response = new AuthResponseDto
+            // {
+            //     AccessToken = accessToken,
+            //     RefreshToken = newRefreshToken,
+            //     ExpiresAt = expires
+            // };
 
-            return ApiResponse<AuthResponseDto>.Success(response);
+            return ApiResponse<AuthResponseDto>.Success();
         }
         catch (Exception ex)
         {
@@ -182,7 +185,8 @@ public class AuthService : IAuthService
     {
         var claims = new[]{
                 new Claim(ClaimTypes.NameIdentifier, userId),
-                new Claim(JwtRegisteredClaimNames.Jti, jti)
+                new Claim(JwtRegisteredClaimNames.Jti, jti),
+                new Claim("user_type", "user"),
             };
 
         var jwt = _config.GetSection("JwtSettings");
